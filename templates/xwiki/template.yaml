@@ -78,6 +78,18 @@ spec:
           description: Hostname for ingress (e.g., xwiki.homelab.local)
           default: xwiki.homelab.local
 
+    - title: Repository Configuration
+      required:
+        - repoUrl
+      properties:
+        repoUrl:
+          title: Repository Location
+          type: string
+          ui:field: RepoUrlPicker
+          ui:options:
+            allowedHosts:
+              - github.com
+
   steps:
     - id: fetch-base
       name: Fetch Base Template
@@ -93,17 +105,39 @@ spec:
           storageSize: ${{ parameters.storageSize }}
           hostname: ${{ parameters.hostname }}
 
-    - id: apply-manifests
-      name: Apply Kubernetes Manifests
-      action: kubernetes:apply
+    - id: publish
+      name: Publish to GitHub
+      action: publish:github
       input:
-        manifestPath: ./manifests
-        namespaced: true
-        namespace: ${{ parameters.namespace }}
+        allowedHosts: ['github.com']
+        repoUrl: ${{ parameters.repoUrl }}
+        description: "XWiki deployment for ${{ parameters.name }}"
+        defaultBranch: main
+        repoVisibility: public
+
+    - id: register
+      name: Register in Catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps['publish'].output.repoContentsUrl }}
+        catalogInfoPath: '/catalog-info.yaml'
 
   output:
     links:
-      - title: XWiki URL
-        url: https://${{ parameters.hostname }}
-      - title: Kubernetes Namespace
-        url: https://backstage.homelab.local/catalog/default/component/${{ parameters.name }}
+      - title: Repository
+        url: ${{ steps['publish'].output.remoteUrl }}
+      - title: Open in Catalog
+        icon: catalog
+        entityRef: ${{ steps['register'].output.entityRef }}
+    text:
+      - title: Deploy to Kubernetes
+        content: |
+          Run the following commands to deploy XWiki:
+
+          ```bash
+          git clone ${{ steps['publish'].output.remoteUrl }}
+          cd ${{ parameters.name }}
+          kubectl apply -f manifests/
+          ```
+
+          Then access XWiki at: https://${{ parameters.hostname }}
