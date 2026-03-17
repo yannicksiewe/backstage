@@ -21,6 +21,7 @@ metadata:
     app: ${{ values.name }}
     app.kubernetes.io/name: xwiki
     app.kubernetes.io/instance: ${{ values.name }}
+    backstage.io/kubernetes-id: ${{ values.name }}
 spec:
   replicas: 1
   selector:
@@ -30,6 +31,7 @@ spec:
     metadata:
       labels:
         app: ${{ values.name }}
+        backstage.io/kubernetes-id: ${{ values.name }}
     spec:
       initContainers:
         - name: wait-for-postgres
@@ -92,6 +94,9 @@ kind: Service
 metadata:
   name: ${{ values.name }}
   namespace: ${{ values.namespace }}
+  labels:
+    app: ${{ values.name }}
+    backstage.io/kubernetes-id: ${{ values.name }}
 spec:
   selector:
     app: ${{ values.name }}

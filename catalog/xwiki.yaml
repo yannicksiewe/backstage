@@ -9,8 +9,6 @@ metadata:
     backstage.io/kubernetes-id: xwiki
     backstage.io/kubernetes-namespace: xwiki
     backstage.io/kubernetes-label-selector: app=xwiki
-    # GitHub Actions plugin (if you have a repo)
-    # github.com/project-slug: yannicksiewe/xwiki-deployment
   tags:
     - wiki
     - xwiki

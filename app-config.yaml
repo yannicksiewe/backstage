@@ -88,6 +88,12 @@ catalog:
       rules:
         - allow: [Template]
 
+    # XWiki deployment template
+    - type: file
+      target: ../../templates/xwiki/template.yaml
+      rules:
+        - allow: [Template]
+
     # Local example organizational data
     - type: file
       target: ../../examples/org.yaml

@@ -3,6 +3,9 @@ kind: Ingress
 metadata:
   name: ${{ values.name }}
   namespace: ${{ values.namespace }}
+  labels:
+    app: ${{ values.name }}
+    backstage.io/kubernetes-id: ${{ values.name }}
   annotations:
     cert-manager.io/cluster-issuer: selfsigned-issuer
     nginx.ingress.kubernetes.io/proxy-body-size: "100m"

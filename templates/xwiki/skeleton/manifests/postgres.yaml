@@ -30,6 +30,7 @@ metadata:
   namespace: ${{ values.namespace }}
   labels:
     app: ${{ values.name }}-postgres
+    backstage.io/kubernetes-id: ${{ values.name }}
 spec:
   serviceName: ${{ values.name }}-postgres
   replicas: 1
@@ -40,6 +41,7 @@ spec:
     metadata:
       labels:
         app: ${{ values.name }}-postgres
+        backstage.io/kubernetes-id: ${{ values.name }}
     spec:
       containers:
         - name: postgres
@@ -70,6 +72,9 @@ kind: Service
 metadata:
   name: ${{ values.name }}-postgres
   namespace: ${{ values.namespace }}
+  labels:
+    app: ${{ values.name }}-postgres
+    backstage.io/kubernetes-id: ${{ values.name }}
 spec:
   selector:
     app: ${{ values.name }}-postgres
