@@ -104,6 +104,8 @@ spec:
           xwikiVersion: ${{ parameters.xwikiVersion }}
           storageSize: ${{ parameters.storageSize }}
           hostname: ${{ parameters.hostname }}
+          repoOwner: ${{ (parameters.repoUrl | parseRepoUrl).owner }}
+          repoName: ${{ (parameters.repoUrl | parseRepoUrl).repo }}
 
     - id: publish
       name: Publish to GitHub

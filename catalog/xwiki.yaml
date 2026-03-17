@@ -1,0 +1,36 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: xwiki
+  title: XWiki
+  description: XWiki wiki platform for homelab documentation
+  annotations:
+    # Kubernetes plugin - shows pods, deployments, logs
+    backstage.io/kubernetes-id: xwiki
+    backstage.io/kubernetes-namespace: xwiki
+    backstage.io/kubernetes-label-selector: app=xwiki
+    # GitHub Actions plugin (if you have a repo)
+    # github.com/project-slug: yannicksiewe/xwiki-deployment
+  tags:
+    - wiki
+    - xwiki
+    - kubernetes
+    - homelab
+  links:
+    - url: https://xwiki.homelab.local
+      title: XWiki Portal
+      icon: web
+spec:
+  type: service
+  lifecycle: production
+  owner: platform-team
+  system: homelab
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: homelab
+  title: Homelab Infrastructure
+  description: Home laboratory infrastructure and services
+spec:
+  owner: platform-team

@@ -5,8 +5,12 @@ metadata:
   title: XWiki - ${{ values.name }}
   description: XWiki wiki platform deployment
   annotations:
+    # Kubernetes plugin - shows pods, deployments, logs
     backstage.io/kubernetes-id: ${{ values.name }}
     backstage.io/kubernetes-namespace: ${{ values.namespace }}
+    backstage.io/kubernetes-label-selector: app=${{ values.name }}
+    # GitHub Actions plugin - shows CI/CD workflow runs
+    github.com/project-slug: ${{ values.repoOwner }}/${{ values.repoName }}
   tags:
     - wiki
     - xwiki
@@ -15,6 +19,9 @@ metadata:
     - url: https://${{ values.hostname }}
       title: XWiki Portal
       icon: web
+    - url: https://github.com/${{ values.repoOwner }}/${{ values.repoName }}
+      title: GitHub Repository
+      icon: github
 spec:
   type: service
   lifecycle: production
