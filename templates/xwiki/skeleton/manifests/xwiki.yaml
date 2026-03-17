@@ -1,0 +1,101 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: ${{ values.name }}-data-pvc
+  namespace: ${{ values.namespace }}
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: ceph-rbd
+  resources:
+    requests:
+      storage: ${{ values.storageSize }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${{ values.name }}
+  namespace: ${{ values.namespace }}
+  labels:
+    app: ${{ values.name }}
+    app.kubernetes.io/name: xwiki
+    app.kubernetes.io/instance: ${{ values.name }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ${{ values.name }}
+  template:
+    metadata:
+      labels:
+        app: ${{ values.name }}
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command: ['sh', '-c', 'until nc -z ${{ values.name }}-postgres 5432; do echo waiting for postgres; sleep 2; done;']
+      containers:
+        - name: xwiki
+          image: xwiki:${{ values.xwikiVersion }}
+          ports:
+            - containerPort: 8080
+          env:
+            - name: DB_HOST
+              value: "${{ values.name }}-postgres"
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: ${{ values.name }}-postgres-secret
+                  key: POSTGRES_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ${{ values.name }}-postgres-secret
+                  key: POSTGRES_PASSWORD
+            - name: DB_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: ${{ values.name }}-postgres-secret
+                  key: POSTGRES_DB
+          volumeMounts:
+            - name: xwiki-data
+              mountPath: /usr/local/xwiki
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            timeoutSeconds: 5
+      volumes:
+        - name: xwiki-data
+          persistentVolumeClaim:
+            claimName: ${{ values.name }}-data-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${{ values.name }}
+  namespace: ${{ values.namespace }}
+spec:
+  selector:
+    app: ${{ values.name }}
+  ports:
+    - port: 8080
+      targetPort: 8080
+      name: http

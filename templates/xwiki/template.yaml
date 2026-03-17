@@ -1,0 +1,109 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: xwiki-deployment
+  title: Deploy XWiki
+  description: Deploy XWiki wiki platform to Kubernetes
+  tags:
+    - wiki
+    - xwiki
+    - kubernetes
+    - homelab
+spec:
+  owner: platform-team
+  type: service
+
+  parameters:
+    - title: XWiki Configuration
+      required:
+        - name
+        - namespace
+      properties:
+        name:
+          title: Deployment Name
+          type: string
+          description: Name for your XWiki deployment
+          default: xwiki
+          pattern: '^[a-z0-9-]+$'
+        namespace:
+          title: Namespace
+          type: string
+          description: Kubernetes namespace to deploy to
+          default: xwiki
+
+    - title: Database Configuration
+      required:
+        - dbPassword
+      properties:
+        dbPassword:
+          title: Database Password
+          type: string
+          description: Password for the PostgreSQL database
+          ui:widget: password
+        dbSize:
+          title: Database Storage Size
+          type: string
+          description: Storage size for PostgreSQL
+          default: 10Gi
+          enum:
+            - 5Gi
+            - 10Gi
+            - 20Gi
+            - 50Gi
+
+    - title: XWiki Settings
+      properties:
+        xwikiVersion:
+          title: XWiki Version
+          type: string
+          description: XWiki Docker image version
+          default: "16-postgres-tomcat"
+          enum:
+            - "16-postgres-tomcat"
+            - "15-postgres-tomcat"
+            - "lts-postgres-tomcat"
+        storageSize:
+          title: XWiki Storage Size
+          type: string
+          description: Storage size for XWiki data
+          default: 10Gi
+          enum:
+            - 5Gi
+            - 10Gi
+            - 20Gi
+            - 50Gi
+        hostname:
+          title: Hostname
+          type: string
+          description: Hostname for ingress (e.g., xwiki.homelab.local)
+          default: xwiki.homelab.local
+
+  steps:
+    - id: fetch-base
+      name: Fetch Base Template
+      action: fetch:template
+      input:
+        url: ./skeleton
+        values:
+          name: ${{ parameters.name }}
+          namespace: ${{ parameters.namespace }}
+          dbPassword: ${{ parameters.dbPassword }}
+          dbSize: ${{ parameters.dbSize }}
+          xwikiVersion: ${{ parameters.xwikiVersion }}
+          storageSize: ${{ parameters.storageSize }}
+          hostname: ${{ parameters.hostname }}
+
+    - id: apply-manifests
+      name: Apply Kubernetes Manifests
+      action: kubernetes:apply
+      input:
+        manifestPath: ./manifests
+        namespaced: true
+        namespace: ${{ parameters.namespace }}
+
+  output:
+    links:
+      - title: XWiki URL
+        url: https://${{ parameters.hostname }}
+      - title: Kubernetes Namespace
+        url: https://backstage.homelab.local/catalog/default/component/${{ parameters.name }}

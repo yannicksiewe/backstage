@@ -1,0 +1,22 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ${{ values.name }}
+  title: XWiki - ${{ values.name }}
+  description: XWiki wiki platform deployment
+  annotations:
+    backstage.io/kubernetes-id: ${{ values.name }}
+    backstage.io/kubernetes-namespace: ${{ values.namespace }}
+  tags:
+    - wiki
+    - xwiki
+    - kubernetes
+  links:
+    - url: https://${{ values.hostname }}
+      title: XWiki Portal
+      icon: web
+spec:
+  type: service
+  lifecycle: production
+  owner: platform-team
+  system: homelab
