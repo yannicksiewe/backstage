@@ -152,35 +152,63 @@ spec:
           repoOwner: ${{ (parameters.repoUrl | parseRepoUrl).owner }}
           repoName: ${{ (parameters.repoUrl | parseRepoUrl).repo }}
 
-    - id: publish
-      name: Publish to GitHub
-      action: publish:github
+    # Split publish:github into atomic steps to work around an upstream race
+    # where `publish:github` creates the repo and immediately git-pushes,
+    # hitting GitHub's git-server propagation lag with HTTP 404. By creating
+    # the repo first, waiting briefly, then pushing as a separate action, we
+    # avoid the race entirely.
+    - id: create-repo
+      name: Create GitHub repository
+      action: github:repo:create
       input:
         repoUrl: ${{ parameters.repoUrl }}
         description: "ERPNext GitOps repo for ${{ parameters.name }} (${{ parameters.environment }})"
         defaultBranch: main
         repoVisibility: private
-        protectDefaultBranch: true
+
+    - id: wait-for-github
+      name: Wait for GitHub propagation
+      action: debug:wait
+      input:
+        seconds: 5
+
+    - id: push
+      name: Push rendered files
+      action: github:repo:push
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+        defaultBranch: main
+        gitCommitMessage: "initial commit: ERPNext ${{ parameters.name }}"
+
+    - id: protect
+      name: Protect default branch
+      action: github:branch-protection:create
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+        branch: main
         requireCodeOwnerReviews: true
+      # protection is best-effort: a brand-new repo with one initial commit
+      # may briefly reject this; the compliance-drift workflow re-checks weekly
+      continueOnError: true
 
     - id: register
       name: Register in Catalog
       action: catalog:register
       input:
-        repoContentsUrl: ${{ steps['publish'].output.repoContentsUrl }}
+        repoContentsUrl: ${{ steps['create-repo'].output.repoContentsUrl }}
         catalogInfoPath: '/catalog-info.yaml'
 
   output:
     links:
       - title: GitOps Repository
-        url: ${{ steps['publish'].output.remoteUrl }}
+        url: ${{ steps['create-repo'].output.remoteUrl }}
       - title: Open in Catalog
         icon: catalog
         entityRef: ${{ steps['register'].output.entityRef }}
     text:
       - title: Next steps
         content: |
-          1. Review the generated PR / repo: ${{ steps['publish'].output.remoteUrl }}
+          1. Review the generated repo: ${{ steps['create-repo'].output.remoteUrl }}
           2. Populate Vault path `${{ parameters.vaultPath }}` with:
              `admin_password`, `db_root_password`, `encryption_key`
           3. Trigger initial deploy:
