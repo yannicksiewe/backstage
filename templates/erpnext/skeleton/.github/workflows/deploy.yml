@@ -1,0 +1,46 @@
+name: Deploy ERPNext (Helm)
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: install | upgrade | diff
+        default: upgrade
+        type: choice
+        options: [install, upgrade, diff]
+
+permissions:
+  contents: read
+  id-token: write   # for OIDC -> Vault / cloud
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: ${{ '${{' }} github.ref_name {{ '}}' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate compliance fields
+        run: ./.github/scripts/validate-compliance.sh
+
+      - uses: azure/setup-helm@v4
+      - uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        run: echo "$KUBECONFIG_B64" | base64 -d > $HOME/.kube/config
+        env:
+          KUBECONFIG_B64: ${{ '${{' }} secrets.KUBECONFIG_B64 {{ '}}' }}
+
+      - name: Helm repo add
+        run: |
+          helm repo add frappe https://helm.erpnext.com
+          helm repo update
+
+      - name: Helm ${{ '${{' }} inputs.action {{ '}}' }}
+        run: |
+          helm ${{ '${{' }} inputs.action {{ '}}' }} \
+            ${{ '${{' }} github.event.repository.name {{ '}}' }} \
+            frappe/erpnext \
+            -n ${{ '${{' }} github.event.repository.name {{ '}}' }} \
+            --create-namespace \
+            -f helm/values.yaml
+          kubectl apply -f manifests/

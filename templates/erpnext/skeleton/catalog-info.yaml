@@ -1,0 +1,87 @@
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: ${{ values.name }}-system
+  title: ERP - ${{ values.name }}
+  description: ERPNext ${{ values.environment }} system for ${{ values.siteName }}
+spec:
+  owner: ${{ values.owner }}
+---
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ${{ values.name }}
+  title: ERPNext - ${{ values.name }}
+  description: ERPNext (Frappe ${{ values.frappeVersion }}) - ${{ values.siteName }}
+  annotations:
+    backstage.io/kubernetes-id: ${{ values.name }}
+    backstage.io/kubernetes-namespace: ${{ values.name }}
+    backstage.io/kubernetes-label-selector: app.kubernetes.io/instance=${{ values.name }}
+    backstage.io/techdocs-ref: dir:.
+    github.com/project-slug: ${{ values.repoOwner }}/${{ values.repoName }}
+    argocd/app-name: ${{ values.name }}
+    grafana/dashboard-selector: "tags @> 'erpnext' && tags @> '${{ values.name }}'"
+    vault.io/secret-path: ${{ values.vaultPath }}
+    # ---- ISO 27001 metadata ----
+    compliance.iso27001/data-classification: ${{ values.dataClassification }}
+    compliance.iso27001/criticality: ${{ values.criticality }}
+    compliance.iso27001/contains-pii: "${{ values.containsPII }}"
+    compliance.iso27001/retention-days: "${{ values.dataRetentionDays }}"
+    compliance.iso27001/last-reviewed: "1970-01-01"
+    compliance.iso27001/controls: "A.5.9,A.5.2,A.8.9,A.8.15,A.8.16,A.8.32,A.5.37"
+  tags:
+    - erpnext
+    - frappe
+    - ${{ values.environment }}
+    - iso27001
+  links:
+    - url: https://${{ values.siteName }}
+      title: ERPNext Portal
+      icon: web
+    - url: https://github.com/${{ values.repoOwner }}/${{ values.repoName }}
+      title: GitOps Repository
+      icon: github
+    - url: https://github.com/${{ values.repoOwner }}/${{ values.repoName }}/blob/main/docs/runbook.md
+      title: Runbook
+      icon: docs
+    - url: https://grafana.example.com/d/erpnext/erpnext?var-instance=${{ values.name }}
+      title: Grafana Dashboard
+      icon: dashboard
+    - url: https://grafana.example.com/explore?left=%7B%22datasource%22:%22loki%22,%22queries%22:%5B%7B%22expr%22:%22%7Bnamespace%3D%5C%22${{ values.name }}%5C%22%7D%22%7D%5D%7D
+      title: Logs (Loki)
+      icon: search
+spec:
+  type: service
+  lifecycle: ${{ values.environment }}
+  owner: ${{ values.owner }}
+  system: ${{ values.name }}-system
+  dependsOn:
+    - resource:${{ values.name }}-mariadb
+    - resource:${{ values.name }}-redis
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: ${{ values.name }}-mariadb
+  title: MariaDB - ${{ values.name }}
+  description: Stateful MariaDB backing ERPNext ${{ values.name }}
+  annotations:
+    compliance.iso27001/data-classification: ${{ values.dataClassification }}
+    compliance.iso27001/contains-pii: "${{ values.containsPII }}"
+    compliance.iso27001/retention-days: "${{ values.dataRetentionDays }}"
+spec:
+  type: database
+  owner: ${{ values.owner }}
+  system: ${{ values.name }}-system
+---
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: ${{ values.name }}-redis
+  title: Redis - ${{ values.name }}
+  description: Redis cache/queue/socketio for ERPNext ${{ values.name }}
+spec:
+  type: cache
+  owner: ${{ values.owner }}
+  system: ${{ values.name }}-system

@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${{ values.name }}
+  labels:
+    app.kubernetes.io/instance: ${{ values.name }}
+    environment: ${{ values.environment }}
+    compliance.iso27001/data-classification: ${{ values.dataClassification }}
+    compliance.iso27001/criticality: ${{ values.criticality }}

@@ -1,0 +1,59 @@
+## kube-prometheus-stack - homelab profile
+fullnameOverride: kps
+
+defaultRules:
+  create: true
+
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: ceph-rbd
+          resources: { requests: { storage: 5Gi } }
+
+prometheus:
+  prometheusSpec:
+    retention: 15d
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: ceph-rbd
+          resources: { requests: { storage: 30Gi } }
+
+grafana:
+  enabled: true
+  adminPassword: changeme-then-rotate-via-vault
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts: [grafana.homelab.local]
+    annotations:
+      cert-manager.io/cluster-issuer: selfsigned-issuer
+    tls:
+      - secretName: grafana-tls
+        hosts: [grafana.homelab.local]
+  persistence:
+    enabled: true
+    storageClassName: ceph-rbd
+    size: 5Gi
+  sidecar:
+    dashboards:
+      enabled: true
+      searchNamespace: ALL
+    datasources:
+      enabled: true
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      url: http://loki.monitoring.svc:3100
+      access: proxy
+
+nodeExporter:
+  enabled: true
+kubeStateMetrics:
+  enabled: true

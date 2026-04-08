@@ -1,0 +1,21 @@
+name: Compliance drift check
+on:
+  schedule: [{ cron: "0 6 * * 1" }]   # Mondays 06:00 UTC
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate catalog-info.yaml has required ISO27001 fields
+        run: ./.github/scripts/validate-compliance.sh
+      - name: Warn if lastReviewed > 180 days
+        run: |
+          last=$(grep 'last-reviewed' catalog-info.yaml | head -1 | awk -F'"' '{print $2}')
+          age=$(( ( $(date +%s) - $(date -d "$last" +%s) ) / 86400 ))
+          echo "lastReviewed age: $age days"
+          if [ "$age" -gt 180 ]; then
+            echo "::warning::ISO 27001 review is overdue ($age days). Update compliance.iso27001/last-reviewed."
+            exit 1
+          fi

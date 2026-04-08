@@ -94,6 +94,12 @@ catalog:
       rules:
         - allow: [Template]
 
+    # ERPNext deployment template (ISO 27001 ready)
+    - type: file
+      target: ../../templates/erpnext/template.yaml
+      rules:
+        - allow: [Template]
+
     # Local example organizational data
     - type: file
       target: ../../examples/org.yaml

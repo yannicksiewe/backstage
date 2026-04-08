@@ -1,0 +1,2 @@
+# Single team for the homelab — split out security-team / app-owner teams later.
+* @${{ values.repoOwner }}/${{ values.owner }}

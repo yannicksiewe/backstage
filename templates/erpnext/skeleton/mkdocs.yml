@@ -1,0 +1,9 @@
+site_name: ERPNext - ${{ values.name }}
+nav:
+  - Overview: index.md
+  - Runbook: runbook.md
+  - Incident Response: incident-response.md
+  - Compliance (ISO 27001): compliance.md
+  - Access Control: access-control.md
+plugins:
+  - techdocs-core

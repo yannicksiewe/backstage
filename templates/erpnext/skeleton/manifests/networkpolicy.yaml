@@ -1,0 +1,145 @@
+## NetworkPolicies for ERPNext ${{ values.name }}
+## Default-deny baseline + explicit allows. Assumes:
+##   - ingress-nginx in namespace `ingress-nginx`
+##   - monitoring (Prometheus/Alloy) in `monitoring`
+##   - cluster DNS in `kube-system`
+## Adjust namespace selectors if your cluster differs.
+
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: ${{ values.name }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
+---
+## DNS egress (every pod needs this)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns
+  namespace: ${{ values.name }}
+spec:
+  podSelector: {}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - { protocol: UDP, port: 53 }
+        - { protocol: TCP, port: 53 }
+---
+## Ingress: only from ingress-nginx -> ERPNext frontend (8080) and websocket (9000)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-ingress-nginx
+  namespace: ${{ values.name }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: ${{ values.name }}
+      app.kubernetes.io/component: nginx
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - { protocol: TCP, port: 8080 }
+        - { protocol: TCP, port: 9000 }
+---
+## Intra-namespace: ERPNext components talk to MariaDB (3306) and Redis (6379, 11000, 12000, 13000)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-internal-erpnext
+  namespace: ${{ values.name }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: ${{ values.name }}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: ${{ values.name }}
+  egress:
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: ${{ values.name }}
+---
+## Monitoring scrape: Prometheus / Alloy from `monitoring` namespace
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-monitoring-scrape
+  namespace: ${{ values.name }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: ${{ values.name }}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - { protocol: TCP, port: 9100 }   # node-exporter style
+        - { protocol: TCP, port: 8080 }   # frappe metrics
+---
+## Egress: SMTP (mail), HTTPS (apt/pip/git for bench, payment gateways, OAuth)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-internet
+  namespace: ${{ values.name }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: ${{ values.name }}
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8        # cluster + RFC1918
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16    # link-local / cloud metadata
+      ports:
+        - { protocol: TCP, port: 443 }
+        - { protocol: TCP, port: 587 }   # SMTP submission
+        - { protocol: TCP, port: 465 }   # SMTPS
+---
+## Egress: Vault (ExternalSecrets pulls from here, but EXO runs in its own ns;
+## ERPNext pods themselves do NOT need Vault egress. This rule is for the
+## one-off bench job that may need to write back rotation. Restrict to your
+## Vault service.)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-egress-vault
+  namespace: ${{ values.name }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: ${{ values.name }}
+      app.kubernetes.io/component: worker-default
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: vault
+      ports:
+        - { protocol: TCP, port: 8200 }
