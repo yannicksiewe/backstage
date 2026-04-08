@@ -1,0 +1,111 @@
+## RBAC for ERPNext ${{ values.name }}
+## Two ServiceAccounts:
+##   - erpnext       : runtime app (least privilege, no API access)
+##   - erpnext-ops   : used by `bench` jobs and backups (needs to read its own secrets)
+## Two human-facing RoleBindings bound to GitHub team -> OIDC group claims.
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: erpnext
+  namespace: ${{ values.name }}
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: erpnext-ops
+  namespace: ${{ values.name }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: erpnext-ops
+  namespace: ${{ values.name }}
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    resourceNames: ["${{ values.name }}-secrets"]
+    verbs: ["get"]
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: erpnext-ops
+  namespace: ${{ values.name }}
+subjects:
+  - kind: ServiceAccount
+    name: erpnext-ops
+    namespace: ${{ values.name }}
+roleRef:
+  kind: Role
+  name: erpnext-ops
+  apiGroup: rbac.authorization.k8s.io
+---
+## Owner team: read + exec (for runbook tasks). Mapped from OIDC group claim.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: erpnext-owner
+  namespace: ${{ values.name }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log", "services", "events", "configmaps", "persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "replicasets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/exec"]
+    verbs: ["create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: erpnext-owner
+  namespace: ${{ values.name }}
+subjects:
+  - kind: Group
+    name: ${{ values.owner }}            # OIDC group claim = Backstage/GitHub team name
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: Role
+  name: erpnext-owner
+  apiGroup: rbac.authorization.k8s.io
+---
+## Platform team: namespace-admin (break-glass + day-2 infra changes).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: erpnext-platform-admin
+  namespace: ${{ values.name }}
+subjects:
+  - kind: Group
+    name: platform-team
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: admin            # built-in: full access within the namespace
+  apiGroup: rbac.authorization.k8s.io
+---
+## Security team: read-only audit access (ISO 27001 A.5.35 - independent review).
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: erpnext-security-audit
+  namespace: ${{ values.name }}
+subjects:
+  - kind: Group
+    name: security-team
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: view             # built-in: read-only, no secrets
+  apiGroup: rbac.authorization.k8s.io

@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ${{ values.name }}
+  namespace: argocd
+  labels:
+    environment: ${{ values.environment }}
+    compliance.iso27001/criticality: ${{ values.criticality }}
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ${{ values.name }}
+  sources:
+    - repoURL: https://github.com/frappe/helm
+      chart: erpnext
+      targetRevision: 7.x
+      helm:
+        valueFiles:
+          - $values/helm/values.yaml
+    - repoURL: https://github.com/${{ values.repoOwner }}/${{ values.repoName }}
+      targetRevision: main
+      ref: values
+    - repoURL: https://github.com/${{ values.repoOwner }}/${{ values.repoName }}
+      targetRevision: main
+      path: manifests
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

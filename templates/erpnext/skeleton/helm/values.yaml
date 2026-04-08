@@ -1,0 +1,71 @@
+## ERPNext Helm values for ${{ values.name }} (${{ values.environment }})
+## Chart: https://github.com/frappe/helm  (frappe/erpnext)
+## Secrets are NOT in this file. They are pulled from Vault path:
+##   ${{ values.vaultPath }}
+## via ExternalSecret -> Kubernetes Secret named "${{ values.name }}-secrets".
+
+image:
+  tag: ${{ values.frappeVersion }}
+
+persistence:
+  worker:
+    enabled: true
+    size: ${{ values.storageSize }}
+
+mariadb:
+  enabled: true
+  auth:
+    existingSecret: ${{ values.name }}-secrets
+  primary:
+    persistence:
+      size: ${{ values.storageSize }}
+
+redis-cache:
+  enabled: true
+redis-queue:
+  enabled: true
+redis-socketio:
+  enabled: true
+
+jobs:
+  createSite:
+    enabled: true
+    siteName: ${{ values.siteName }}
+    adminPassword:
+      secretKeyRef:
+        name: ${{ values.name }}-secrets
+        key: admin_password
+    installApps:
+{%- for app in values.installApps %}
+      - {{ app }}
+{%- endfor %}
+
+  backup:
+    enabled: true
+    schedule: "0 */6 * * *"
+    retentionDays: ${{ values.dataRetentionDays }}
+
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: ${{ values.siteName }}
+      paths:
+        - path: /
+          pathType: Prefix
+  tls:
+    - secretName: ${{ values.name }}-tls
+      hosts:
+        - ${{ values.siteName }}
+
+resources:
+{%- if values.size == "small" %}
+  requests: { cpu: 250m, memory: 512Mi }
+  limits:   { cpu: 1,    memory: 2Gi }
+{%- elif values.size == "medium" %}
+  requests: { cpu: 500m, memory: 1Gi }
+  limits:   { cpu: 2,    memory: 4Gi }
+{%- else %}
+  requests: { cpu: 1,    memory: 2Gi }
+  limits:   { cpu: 4,    memory: 8Gi }
+{%- endif %}

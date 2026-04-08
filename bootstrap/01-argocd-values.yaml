@@ -1,0 +1,40 @@
+## ArgoCD - homelab profile
+global:
+  domain: argocd.homelab.local
+
+configs:
+  params:
+    server.insecure: true     # TLS terminated at ingress-nginx
+  cm:
+    timeout.reconciliation: 60s
+    application.instanceLabelKey: argocd.argoproj.io/instance
+
+server:
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hostname: argocd.homelab.local
+    annotations:
+      cert-manager.io/cluster-issuer: selfsigned-issuer
+    tls: true
+
+controller:
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+repoServer:
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+
+applicationSet:
+  enabled: true
+
+notifications:
+  enabled: false
+
+dex:
+  enabled: false             # add SSO later (GitHub OAuth) for ISO 27001 A.5.16
